@@ -1,0 +1,46 @@
+sources:
+  - name: demo_src
+    description: Данные из бд авиаперелетов # так можно задать описание источника для документации
+    #database: dwh_flight   - можно явно указать, но не будем, тк у нас название бд совпадает с названием в profiles.yml (бд по умолчанию)
+    #schema: demo_src       - если хотим назвать источник другим именем (отлично от имени схемы) то указываем. У нас имена совпадают, а значит имя схемы можно не задавать явно
+    tables:
+      - name: aircrafts
+        description: Модели самолетов # так можно задать описание таблицы
+        columns:
+          - name: aircraft_code
+            description: Код модели самолета      #Вот так можно задать описание для каждого столбца
+          - name: model
+            description: Модель самолета
+      - name: aircrafts_data
+      - name: airports
+        description: Аэропорты
+      - name: airports_data
+      - name: boarding_passes
+      - name: bookings
+        # Для таблицы можно настроить проверку свежести данных. Для этого должно быть поле с датой
+        # Проверка смотрит на самую свежую запись и выдает алерт или ошибку еслли она старше установленного парога
+        # Ниже пример настройки для таблицы bookings (можно установить и для всего источника под разделом -name источника)
+        # Если настройка есть и у источника и у таблицы, то настройка таблицы имеет приоритет для нее
+        # Можно прописать freshness: null под полем name таблицы и настройки freshness источника не будут применяться к таблице
+        # Документация с настройками: https://docs.getdbt.com/reference/resource-properties/freshness
+        config:
+          freshness: 
+            warn_after:
+              count: 600000
+              period: hour
+            error_after:
+              count: 10000
+              period: day
+            filter: current_timestamp::date - book_date::date < 30000 #Не обязательно - пребварительный фильтр таблицы (как блок where в sql)
+          loaded_at_field: book_date::timestamp #поле с датой, обязательно нужен тип timestamp
+          #loaded_at_query: <sql_expression>
+      - name: flights
+      - name: flights_v
+      - name: routes
+      - name: seats
+        description: Места в самолетах
+      - name: ticket_flights
+      - name: tickets
+
+
+# теперь у нас прописаны источники и мы можем создавать моджели с данными из них
