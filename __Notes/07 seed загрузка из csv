@@ -1,0 +1,62 @@
+https://docs.getdbt.com/docs/build/seeds
+; Из csv можно грузить какие-то небольшие справочники
+; Обновляются оидельной командой
+
+dbt seed                                                    ; - обновление seed (csv)
+dbt seed --select <имя сида>+                               ; - обновить модели, которые зависят от конкретного сида
+
+
+Получить данные из seed в модели можно при помощи макроса ref """SELECT * FROM {{ref(<имя сида>)}}"""
+
+
+можно явно указать типа данных для колонок - это я сделал в yml файле
+
+
+Конфигурируется так же, как и другие модели, но есть три специальных свойства:
+
+seeds:
+  <resource-path>:
+    +quote_columns: true | false                        ; Нужно ли обрамлять значение ячейки в двойные ковычки
+    +column_types: {column_name: datatype}              ; Задаем типы данных для колонок
+    +delimiter: <string>                                ; Задаем разделитель столбцов
+
+
+Можно задать хранение seeds в другой схеме - для этого добавляем в главный конфигурационный файл?
+
+seeds:
+    schema: <имя схемы>                                 ; Так настройка будет распространяться вообще на все сиды
+
+
+seeds:
+    dbt_project:
+        schema: <имя схемы>                             ; А так только на сиды указанного проекта
+
+
+
+; СВОЙСТВА которые можно задавать сиду:
+
+seeds:
+  - name: <string>
+    description: <markdown_string>
+    config:
+      <seed_config>: <config_value>
+      docs:
+        show: true | false
+        node_color: <color_id> # Use name (such as node_color: purple) or hex code with quotes (such as node_color: "#cd7f32")
+    data_tests:
+      - <test>
+      - ... # declare additional tests
+    columns:
+      - name: <column name>
+        description: <markdown_string>
+        quote: true | false
+        data_tests:
+          - <test>
+          - ... # declare additional tests
+        config:
+          meta: {<dictionary>}
+          tags: [<string>]
+
+      - name: ... # declare properties of additional columns
+
+  - name: ... # declare properties of additional seeds

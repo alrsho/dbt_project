@@ -1,0 +1,64 @@
+# Об инкрементальном обновлении           https://docs.getdbt.com/docs/build/incremental-models-overview
+# Стратегии инкрементального обновления   https://docs.getdbt.com/docs/build/incremental-strategy
+# Конфигурирование при инкр обновлении    https://docs.getdbt.com/docs/build/incremental-models
+# Создание нового типа материализации     https://docs.getdbt.com/guides/create-new-materializations?step=1
+
+
+Data platform adapter	    append	    merge	    delete+insert	    insert_overwrite	    microbatch
+dbt-postgres	              ✅	        ✅	          ✅		                                   ✅
+dbt-redshift	              ✅	        ✅	          ✅		                                   ✅
+dbt-bigquery		                      ✅		                           ✅	                 ✅
+dbt-spark	                  ✅	        ✅		                          ✅	                   ✅
+dbt-databricks	              ✅	        ✅		                          ✅	                   ✅
+dbt-snowflake	              ✅	        ✅	           ✅	            ✅	                 ✅
+dbt-trino	                  ✅	        ✅	           ✅		                               ✅
+dbt-fabric	                  ✅		                                       ✅		
+dbt-athena	                  ✅	        ✅		                          ✅	                   ✅
+dbt-teradata	              ✅	        ✅	           ✅		                               ✅
+
+
+; -------------------------------------    append - определяет новые строки и дозаписывает их в модель (только новые)
+{{
+    config(
+        materialized = 'incremental',
+        incremental_strategy = 'append'
+    )
+}}
+select
+book_ref,
+book_date,
+total_amount
+from {{ source('demo_src', 'bookings') }}
+{% if is_incremental() %}  -- При первом запуске вернет False и произоойдет обычная загрузка. При остальных запусках вернет True и выполнится условие
+  where 
+    book_ref > (select max(book_ref) from {{ this}})  --{{this}} - способ сослаться на экземпляр этой таблицы в бд
+{% endif %}                 -- Пример условной конструкции
+
+; -------------------------------------    merge - накатываем новые и измененные строки (за один проход по таблице)
+; -------------------------------------    delete / insert - тоже самое, но за два прохода по таблице (сначала для delete, потом для insert)
+
+
+{{
+    config(
+        materialized = 'incremental',
+        incremental_strategy = 'merge',   (или delete+insert)
+        unique_key = ['book_ref']
+        merge_update_columns = ['total_amount'] -- Можно указать конкретные колонки, которые обновляем (опционально)    
+        merge_exclude_columns = ['book_date']   -- Или наоборот, какие колонки обновлять не надо  
+        incremental_predicates = ['DBT_INTERNAL_SOURSE.book_date < current_timstamp - interval \'7 day\'']  
+                                            -- Выражения для фильтрации строк. например мы можем отфильтровать строки источника перед merge.
+                                            Для этого используются элиасы DBT_INTERNAL_DEST (таргет таблица) и DBT_INTERNAL_SOURSE (таблица - источник)
+    )                                               
+}}                                              -- unique_key - kлюч Список, через запятую можно еще поля указать
+select
+book_ref,
+book_date,
+total_amount
+from {{ source('demo_src', 'bookings') }}
+{% if is_incremental() %}
+  where 
+    book_ref > (select max(book_date) from {{ source('demo_src', 'bookings') }}) - interval '97 day'  --отсечка, для merge за какой период смотреть строки
+{% endif %}
+
+
+

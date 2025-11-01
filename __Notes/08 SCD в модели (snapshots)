@@ -1,0 +1,105 @@
+; Это про valid_from и valid_to
+; Есть две стратегии:
+;     - Timestamp - нужно применять вегда, когда возможно (самая быстрая)
+;         Можно применить, когда есть в источнике поле updated_at (дата обновления строки)
+;     - Chek - медленная, но применима всегда (сравнивает источник и целевую таблицы полностью)
+
+
+
+; ДОКУМЕНТАЦИЯ И ПРОЧИЕ КОНФИГИ: https://docs.getdbt.com/docs/build/snapshots
+
+
+
+
+; Пример модели с scd (2 типа):
+
+;-----------------------------   СТРАТЕГИЯ TIMESTAMP ---------------------------------------------------------------
+
+{% snapshot snap__city_region %}            -- обявляем начало снепшота
+
+{{
+   config(
+       target_database='target_database',       -- Можно поместить снепшоты в отдельную бд (можно оставить в текущей, тогда удалить строку)
+       target_schema='snapshot',           -- Так же со схемой
+       unique_key='city',                   -- Ключ для идентивикации строк
+
+       strategy='timestamp',                -- стратегия
+       updated_at='updated_at',             -- поле для определения изменения
+       dbt_valid_to_current="'9999-01-01'::date"              -- (опционально) что проставлять в поле valid_to у действующих записей вместо null
+       snapshots:
+        - name: <snapshot_name>
+            config:
+                snapshot_meta_column_names:         -- Переименование системных столбцов dbt
+                    dbt_valid_from: <string>
+                    dbt_valid_to: <string>
+                    dbt_scd_id: <string>
+                    dbt_updated_at: <string>
+                    dbt_is_deleted: <string>
+                    hard_deletes: 'ignore' | 'invalidate' | 'new_record'  -- Стратегия, что делать с удаленными строками? 
+                                                                            (игнорировать, проставлять дату valid_to при удалении, проставлять флаг is_deleted)
+                                                                            для третьей стратегии необходимо создать столбец dbt_is_deleted 9если не создалсясам)
+   )
+}}
+
+-- Ну и сам запрос (лучше не добавлять сюда никакой логики)
+-- Если нужна логика, лучше сделать промежуточную эфимерную таблицу
+
+SELECT
+    city,
+    region,
+    updated_at
+FROM
+    {{ ref('city_region') }}
+
+
+
+{% endsnapshot %}                       -- объявляем завершение снепшота
+
+
+
+
+;-----------------------------   СТРАТЕГИЯ CHECK ---------------------------------------------------------------
+
+
+{% snapshot dim_flights_airports %}
+
+{{
+   config(
+       target_schema='snapshot',
+       unique_key='airport_code',
+
+       strategy='check',
+       check_cols=['airport_name', 'city', 'coordinates', 'timezone'],                  -- Указываем, изменения каких колонок проверять?
+       dbt_valid_to_current="'9999-01-01'::date"
+   )
+}}
+
+select
+  airport_code,
+  airport_name,
+  city,
+  coordinates,
+  timezone
+from {{ ref('stg_flights__airports') }}
+
+{% endsnapshot %}
+
+
+
+; ДОКУМЕНТАЦИЯ И ПРОЧИЕ КОНФИГИ: https://docs.getdbt.com/docs/build/snapshots
+
+Например вот так можно задать другие имена системным колонкам:
+
+
+snapshots:
+  - name: <snapshot_name>
+    config:
+      snapshot_meta_column_names:
+        dbt_valid_from: <string>
+        dbt_valid_to: <string>
+        dbt_scd_id: <string>
+        dbt_updated_at: <string>
+        dbt_is_deleted: <string>
+
+
+Так же можно указать стратегии для удаления строк и тп
