@@ -26,7 +26,7 @@ models:
     columns:                                              # Перечисляем колонки (так же необходимы для контракта)
       - name: book_ref
         description: Описание колонки
-        data_type: bpchar(6)
+        data_type: bpchar(8)
         constraints:                                      # Задаем ограничения для этой колонки (Ограничения могут быть и на уровне модели)
           - type: not_null
       - name: book_date

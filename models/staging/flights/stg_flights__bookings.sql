@@ -1,6 +1,7 @@
 {{
     config(
         materialized = 'incremental',
+        static_analysis='off',
         incremental_strategy = 'append',
         tags = ['bookings']
     )

@@ -1,6 +1,7 @@
 {{
     config(
         materialized = 'table',
+        static_analysis='off'
     )
 }}
 select
@@ -9,5 +10,8 @@ select
   fare_conditions,
   amount
 from {{ source('demo_src', 'ticket_flights') }}
+{%- if target.name == 'dev' %}
+limit 100000  
+{%- endif %}
 
     

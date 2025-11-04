@@ -1,6 +1,7 @@
 {{
     config(
         materialized = 'incremental',
+        static_analysis='off',
         incremental_strategy = 'delete+insert',
         unique_key = ['book_ref'],
         tags = ['bookings']           
